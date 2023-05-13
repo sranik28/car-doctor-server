@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster1.ngcynwn.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -27,13 +27,38 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
-        const servicesCollection = client.db("carsDoctor").collection('services')
+        const servicesCollection = client.db("carsDoctor").collection('services');
+        const checkOutCollection = client.db("carsDoctor").collection('checkOut');
 
         app.get('/services', async (req, res) => {
             const serviceData = servicesCollection.find();
             const result = await serviceData.toArray();
             res.send(result)
         });
+
+        app.get("/services/:id", async (req, res) => {
+            const id = req.params.id;
+            // console.log(id)
+            const query = { _id: new ObjectId(id) };
+            const options = {
+                // Include only the `title` and `imdb` fields in each returned document
+                projection: { title: 1, price: 1, service_id: 1 },
+            };
+
+            const result = await servicesCollection.findOne(query, options);
+            res.send(result)
+        })
+
+        // checkOut
+
+        app.post('/checkOuts', async (req, res) => {
+            const checkOut = req.body;
+            console.log(checkOut)
+            const result = await checkOutCollection.insertOne(checkOut)
+            res.send(result)
+        })
+
+
 
 
 
@@ -47,9 +72,8 @@ async function run() {
 }
 run().catch(console.dir);
 
-
 app.get('/', (req, res) => {
     res.send('server is running')
-})
+});
 
 app.listen(port);
