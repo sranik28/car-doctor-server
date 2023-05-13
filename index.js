@@ -42,7 +42,7 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const options = {
                 // Include only the `title` and `imdb` fields in each returned document
-                projection: { title: 1, price: 1, service_id: 1 },
+                projection: { title: 1, price: 1, service_id: 1, img: 1 },
             };
 
             const result = await servicesCollection.findOne(query, options);
@@ -51,10 +51,41 @@ async function run() {
 
         // checkOut
 
+        app.get('/checkOuts', async (req, res) => {
+            let query = {};
+            if (req.query?.email) {
+                query = { customerEmail: req.query.email }
+                console.log(query.email)
+            }
+            const result = await checkOutCollection.find(query).toArray();
+            res.send(result)
+        })
+
         app.post('/checkOuts', async (req, res) => {
             const checkOut = req.body;
             console.log(checkOut)
             const result = await checkOutCollection.insertOne(checkOut)
+            res.send(result)
+        })
+
+        app.patch('/checkOuts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const updating = req.body;
+            console.log(updating)
+            const updateDoc = {
+                $set: {
+                    status: updating.status
+                }
+            };
+            const result = await checkOutCollection.updateOne(query, updateDoc);
+            res.send(result)
+        })
+
+        app.delete('/checkOuts/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await checkOutCollection.deleteOne(query);
             res.send(result)
         })
 
