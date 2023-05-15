@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken')
 require('dotenv').config();
 
 const port = process.env.PORT || 5000
@@ -22,6 +23,23 @@ const client = new MongoClient(uri, {
     }
 });
 
+const verifyJwt = (req, res, next) => {
+    console.log("jwt")
+    const authorization = req.headers.authorization;
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: ('unauthorized access') });
+    }
+    const token = authorization.split(' ')[1];
+    console.log(token)
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (error, decoded) => {
+        if (error) {
+            return res.status(403).send({ error: true, message: "unauthorized access" })
+        };
+        req.decoded = decoded;
+        next()
+    })
+}
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -29,6 +47,19 @@ async function run() {
 
         const servicesCollection = client.db("carsDoctor").collection('services');
         const checkOutCollection = client.db("carsDoctor").collection('checkOut');
+
+        // jwt
+
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            // console.log(user)
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            console.log(token)
+            res.send({ token })
+        })
+
+
+        // services
 
         app.get('/services', async (req, res) => {
             const serviceData = servicesCollection.find();
@@ -51,11 +82,16 @@ async function run() {
 
         // checkOut
 
-        app.get('/checkOuts', async (req, res) => {
+        app.get('/checkOuts', verifyJwt, async (req, res) => {
+            req.decoded = decoded;
+            console.log(req.headers.authorization)
+            if (decoded.email !== req.query.email) {
+                return res.status(403).send({ error: true, message: 'forbidden access' })
+            }
             let query = {};
             if (req.query?.email) {
                 query = { customerEmail: req.query.email }
-                console.log(query.email)
+                // console.log(query.email)
             }
             const result = await checkOutCollection.find(query).toArray();
             res.send(result)
@@ -72,7 +108,7 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) };
             const updating = req.body;
-            console.log(updating)
+            // console.log(updating)
             const updateDoc = {
                 $set: {
                     status: updating.status
